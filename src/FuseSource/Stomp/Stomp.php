@@ -184,13 +184,15 @@ class Stomp
     }
     /**
      * Connect to server
-     *
+     * A STOMP client initiates the stream or TCP connection to the server by sending the CONNECT frame.
+     * The Server response back with CONNECTED frame, that has sessionI : A session identifier that uniquely identifies the session.
      * @param string $username
      * @param string $password
+     * @param  string optionalParams
      * @return boolean
      * @throws StompException
      */
-    public function connect ($username = '', $password = '')
+    public function connect ($username = '', $password = '', $optionalParams = array())
     {
         $this->_makeConnection();
         if ($username != '') {
@@ -204,6 +206,7 @@ class Stomp
 			$headers["client-id"] = $this->clientId;
 		}
 		$frame = new Frame("CONNECT", $headers);
+		$frame->headers = array_merge($frame->headers, $optionalParams);
         $this->_writeFrame($frame);
         $frame = $this->readFrame();
 
@@ -326,7 +329,9 @@ class Stomp
     }
     /**
      * Register to listen to a given destination
-     *
+     * The SUBSCRIBE frame requires a destination header indicating the destination to which the client wants to subscribe.
+     * Any messages received on the subscribed destination will henceforth be delivered as MESSAGE frames from the server to the client.
+     * The ack header controls the message acknowledgment mode.
      * @param string $destination Destination queue
      * @param array $properties
      * @param boolean $sync Perform request synchronously
@@ -368,7 +373,7 @@ class Stomp
     }
     /**
      * Remove an existing subscription
-     *
+     * A standard UNSUBSCRIBE frame does not destroy the durable subscription, it only disconnects the client from the durable subscription.
      * @param string $destination
      * @param array $properties
      * @param boolean $sync Perform request synchronously
@@ -488,6 +493,36 @@ class Stomp
             return true;
         }
     }
+    /**
+	 * Negative Acknowledgement. client did not consume the message from a subscription
+	 * NACK applies either to one single message (if the subscription's ack mode is client-individual) or to all messages sent before and not yet ACK'ed or NACK'ed.
+	 * Note: This operation is always asynchronous
+	 *
+	 * @param $messageMessage string|Frame ID
+	 * @param $transactionId string
+	 * @return boolean
+	 * @throws StompException
+	 */
+	public function nack($message, $transactionId = null){
+		if($message instanceof Frame){
+			$headers = $message->headers;
+			if(isset($transactionId)){
+				$headers['transaction'] = $transactionId;
+			}
+			$frame = new Frame('NACK', $headers);
+			$this->_writeFrame($frame);
+			return true;
+		}else{
+			$headers = array();
+			if(isset($transactionId)){
+				$headers['transaction'] = $transactionId;
+			}
+			$headers['message-id'] = $message;
+			$frame = new Frame('NACK', $headers);
+			$this->_writeFrame($frame);
+			return true;
+		}
+	}
     /**
      * Graceful disconnect from the server
      *
