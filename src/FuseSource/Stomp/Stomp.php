@@ -69,14 +69,14 @@ class Stomp
     protected $_subscriptions = array();
     protected $_defaultPort = 61613;
     protected $_currentHost = - 1;
-    protected $_attempts = 10;
+    protected $_attempts = 5;
     protected $_username = '';
     protected $_password = '';
     protected $_sessionId;
     protected $_version;
     protected $_read_timeout_seconds = 60;
     protected $_read_timeout_milliseconds = 0;
-    protected $_connect_timeout_seconds = 60;
+    protected $_connect_timeout_seconds = 30;
     protected $_waitbuf = array();
 
     /**
@@ -153,7 +153,7 @@ class Stomp
         $connect_errno = null;
         $connect_errstr = null;
 
-        while (! $connected && $att ++ < $this->_attempts) {
+        while (! $connected && $att++ <= $this->_attempts) {
             if (isset($this->_params['randomize']) && $this->_params['randomize'] == 'true') {
                 $i = rand(0, count($this->_hosts) - 1);
             } else {
@@ -171,7 +171,7 @@ class Stomp
                 $this->_socket = null;
             }
             $this->_socket = @fsockopen($scheme . '://' . $host, $port, $connect_errno, $connect_errstr, $this->_connect_timeout_seconds);
-            if (!is_resource($this->_socket) && $att >= $this->_attempts && !array_key_exists($i + 1, $this->_hosts)) {
+            if (!is_resource($this->_socket) && $att >= $this->_attempts) {
                 throw new StompException("Could not connect to $host:$port ($att/{$this->_attempts})");
             } else if (is_resource($this->_socket)) {
                 $connected = true;
@@ -355,7 +355,7 @@ class Stomp
         } else if ($this->brokerVendor == 'RMQ') {
             $headers['prefetch-count'] = $this->prefetchSize;
         }
-		
+
         if ($this->clientId != null) {
             if ($this->brokerVendor == 'AMQ') {
                 $headers['activemq.subscriptionName'] = $this->clientId;
@@ -687,7 +687,7 @@ class Stomp
      * Reconnects and renews subscriptions (if there were any)
      * Call this method when you detect connection problems
      */
-    protected function _reconnect ()
+    public function _reconnect ()
     {
         $subscriptions = $this->_subscriptions;
 
